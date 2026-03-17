@@ -1,10 +1,9 @@
-import clientPromise from "@/lib/mongodb";
 import { NextResponse } from "next/server";
+import clientPromise from "@/lib/mongodb";
 
 export async function GET(request) {
-  // ── Simple auth check ──────────────────────────────────────────────
-  const apiKey = request.headers.get("x-api-key");
-  if (apiKey !== process.env.DASHBOARD_PASSWORD) {
+  const authHeader = request.headers.get("Authorization");
+  if (authHeader !== process.env.DASHBOARD_PASSWORD) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -13,135 +12,64 @@ export async function GET(request) {
     const db = client.db("telemetry");
     const events = db.collection("events");
 
-    // ── 1. Page views per day (last 30 days) ─────────────────────────
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    const viewsByDay = await events
-      .aggregate([
-        {
-          $match: {
-            type: "pageview",
-            timestamp: { $gte: thirtyDaysAgo },
-          },
-        },
-        {
-          $group: {
-            _id: {
-              $dateToString: { format: "%Y-%m-%d", date: "$timestamp" },
-            },
-            count: { $sum: 1 },
-          },
-        },
-        { $sort: { _id: 1 } },
-        { $project: { _id: 0, date: "$_id", count: 1 } },
-      ])
-      .toArray();
-
-    // ── 2. Average load time per page ────────────────────────────────
-    const loadTimes = await events
-      .aggregate([
-        { $match: { type: "performance" } },
-        {
-          $group: {
-            _id: "$url",
-            avgTTI: { $avg: "$data.tti" },
-            avgDCL: { $avg: "$data.domContentLoaded" },
-            avgLoad: { $avg: "$data.loadComplete" },
-            count: { $sum: 1 },
-          },
-        },
-        {
-          $project: {
-            _id: 0,
-            url: "$_id",
-            avgTTI: { $round: ["$avgTTI", 0] },
-            avgDCL: { $round: ["$avgDCL", 0] },
-            avgLoad: { $round: ["$avgLoad", 0] },
-            count: 1,
-          },
-        },
-        { $sort: { count: -1 } },
-        { $limit: 20 },
-      ])
-      .toArray();
-
-    // ── 3. Top clicked elements ──────────────────────────────────────
-    const clicks = await events
-      .aggregate([
-        { $match: { type: "click" } },
-        {
-          $group: {
-            _id: "$data.label",
-            count: { $sum: 1 },
-          },
-        },
-        { $sort: { count: -1 } },
-        { $limit: 10 },
-        { $project: { _id: 0, label: "$_id", count: 1 } },
-      ])
-      .toArray();
-
-    // ── 4. Views by page URL ─────────────────────────────────────────
-    const viewsByPage = await events
-      .aggregate([
-        { $match: { type: "pageview" } },
-        {
-          $group: {
-            _id: "$url",
-            count: { $sum: 1 },
-          },
-        },
-        { $sort: { count: -1 } },
-        { $limit: 20 },
-        { $project: { _id: 0, url: "$_id", count: 1 } },
-      ])
-      .toArray();
-
-    // ── 5. Summary stats ─────────────────────────────────────────────
+    // 1. Core Totals
     const totalEvents = await events.countDocuments();
-    const uniqueSessions = await events.distinct("sessionId");
-    const avgTTIAll = await events
-      .aggregate([
-        { $match: { type: "performance", "data.tti": { $exists: true } } },
-        { $group: { _id: null, avg: { $avg: "$data.tti" } } },
-      ])
-      .toArray();
+    const uniqueUsers = await events.distinct("userId"); // Uses the new userId field
 
-    // ── 6. Browser breakdown ─────────────────────────────────────────
-    const browsers = await events
-      .aggregate([
-        { $match: { type: "pageview" } },
-        {
-          $group: {
-            _id: "$browser",
-            count: { $sum: 1 },
-          },
-        },
-        { $sort: { count: -1 } },
-        { $project: { _id: 0, browser: "$_id", count: 1 } },
-      ])
-      .toArray();
+    // 2. Average Time to Interactive (TTI)
+    const perfData = await events.aggregate([
+      { $match: { type: "performance", "data.tti": { $exists: true } } },
+      { $group: { _id: null, avgTTI: { $avg: "$data.tti" } } }
+    ]).toArray();
 
-    const stats = {
-      totalEvents,
-      uniqueSessions: uniqueSessions.length,
-      avgTTI: avgTTIAll.length ? Math.round(avgTTIAll[0].avg) : 0,
-    };
+    // 3. Top Pages (Filter for production only)
+    const topPages = await events.aggregate([
+      { $match: { type: "pageview" } },
+      { $group: { _id: "$url", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 10 }
+    ]).toArray();
+
+    // 4. Aggregated Clicks (for Bar Chart)
+    const topClicks = await events.aggregate([
+      { $match: { type: "click" } },
+      { $group: { _id: "$data.label", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $project: { label: "$_id", count: 1, _id: 0 } }
+    ]).toArray();
+
+    // 5. Browser Breakdown
+    const browsers = await events.aggregate([
+      { $group: { _id: "$browser", count: { $sum: 1 } } },
+      { $sort: { count: -1 } }
+    ]).toArray();
+
+    // 6. Recent Interaction Stream
+    const recentClicks = await events.find({ type: "click" })
+      .sort({ timestamp: -1 })
+      .limit(12)
+      .project({ 
+        label: "$data.label", 
+        userId: 1, 
+        visitCount: 1, 
+        timestamp: 1, 
+        _id: 0 
+      })
+      .toArray();
 
     return NextResponse.json({
-      viewsByDay,
-      loadTimes,
-      clicks,
-      viewsByPage,
+      totalEvents,
+      uniqueUsers: uniqueUsers.length,
+      avgTTI: Math.round(perfData[0]?.avgTTI || 0),
+      topPages,
+      topClicks,
       browsers,
-      stats,
+      recentClicks,
+      totalPages: topPages.length
     });
-  } catch (error) {
-    console.error("Dashboard API error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+
+  } catch (e) {
+    console.error("Dashboard API error:", e);
+    return NextResponse.json({ error: "Server Error" }, { status: 500 });
   }
 }

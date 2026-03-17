@@ -1,365 +1,186 @@
 "use client";
+import React, { useEffect, useState } from 'react';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+  PieChart, Pie, Cell 
+} from 'recharts';
 
-import { useState, useEffect, useCallback } from "react";
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts";
-import styles from "./dashboard.module.css";
+// ── DESCRIPTIVE LABEL MAPPING ───────────────────────────────────────
+// Translates technical IDs into human-readable descriptions
+const labelMap = {
+  // Resumes
+  'resume_download_web': 'Developer Resume (PDF)',
+  'resume_download_mobile': 'Mobile Resume (PDF)',
+  'resume_download_data': 'Data Resume (PDF)',
+  // Projects
+  'project_view_kape4u': 'Kape4U Project Click',
+  'project_view_coffee_pipeline': 'Coffee Analytics Click',
+  'project_view_ihm_proto': 'IHM Prototype Click',
+  'project_view_speirs_proto': 'Speirs Group Prototype Click',
+  // Socials/Nav
+  'github_hero': 'GitHub Link (Hero)',
+  'linkedin_hero': 'LinkedIn Link (Hero)',
+  'click_github': 'GitHub Link (General)',
+  'click_linkedin': 'LinkedIn Link (General)'
+};
 
-const COLORS = ["#3b82f6", "#60a5fa", "#94a3b8", "#64748b", "#38bdf8", "#475569", "#93c5fd", "#cbd5e1"];
+const Dashboard = () => {
+  const [data, setData] = useState(null);
+  const [password, setPassword] = useState('');
+  const [isAuthorized, setIsAuthorized] = useState(false);
 
-function CustomTooltip({ active, payload, label }) {
-  if (!active || !payload || !payload.length) return null;
-  return (
-    <div
-      style={{
-        background: "rgba(15, 17, 23, 0.95)",
-        border: "1px solid rgba(255,255,255,0.1)",
-        borderRadius: "10px",
-        padding: "0.6rem 1rem",
-        fontSize: "0.85rem",
-        color: "#e0e0e0",
-      }}
-    >
-      <p style={{ fontWeight: 600, marginBottom: "0.2rem" }}>{label}</p>
-      {payload.map((p, i) => (
-        <p key={i} style={{ color: p.color }}>
-          {p.name}: {typeof p.value === "number" ? p.value.toLocaleString() : p.value}
-        </p>
-      ))}
-    </div>
-  );
-}
-
-// ── Login Screen ──────────────────────────────────────────────────────
-function LoginScreen({ onLogin }) {
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!password.trim()) {
-      setError("Please enter a password");
-      return;
+  const fetchData = async () => {
+    try {
+      const res = await fetch('/api/telemetry/dashboard', {
+        headers: { 'Authorization': password }
+      });
+      if (res.ok) {
+        const result = await res.json();
+        // Translate chart labels before rendering
+        const translatedClicks = result.topClicks.map(item => ({
+          ...item,
+          displayName: labelMap[item.label] || item.label 
+        }));
+        setData({ ...result, topClicks: translatedClicks });
+        setIsAuthorized(true);
+      }
+    } catch (err) {
+      console.error("Fetch error:", err);
     }
-    setError("");
-    onLogin(password.trim());
   };
 
-  return (
-    <div className={styles.dashboard}>
-      <div className={styles.loginContainer}>
-        <form className={styles.loginCard} onSubmit={handleSubmit}>
-          <h1>📡 Telemetry</h1>
-          <p>Enter your dashboard password to continue</p>
-          <input
-            type="password"
-            placeholder="Dashboard password"
+  useEffect(() => {
+    if (isAuthorized) {
+      const interval = setInterval(fetchData, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [isAuthorized, password]);
+
+  if (!isAuthorized) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
+        <div className="bg-slate-900 p-8 rounded-xl border border-slate-800 w-full max-w-md shadow-2xl">
+          <h1 className="text-white text-2xl font-bold mb-6 flex items-center gap-3">
+            <span className="animate-pulse">📡</span> Telemetry Access
+          </h1>
+          <input 
+            type="password" 
+            placeholder="System Password"
+            className="w-full bg-black border border-slate-700 p-3 rounded mb-4 text-white focus:border-blue-500 outline-none"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            autoFocus
           />
-          <button type="submit">Unlock Dashboard</button>
-          {error && <p className={styles.loginError}>{error}</p>}
-        </form>
-      </div>
-    </div>
-  );
-}
-
-// ── Main Dashboard ────────────────────────────────────────────────────
-export default function DashboardPage() {
-  const [apiKey, setApiKey] = useState(null);
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const fetchData = useCallback(
-    async (key) => {
-      setLoading(true);
-      setError("");
-      try {
-        const res = await fetch("/api/telemetry/dashboard", {
-          headers: { "x-api-key": key || apiKey },
-        });
-        if (res.status === 401) {
-          setApiKey(null);
-          setError("Invalid password. Please try again.");
-          return;
-        }
-        if (!res.ok) throw new Error("Failed to fetch data");
-        const json = await res.json();
-        setData(json);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [apiKey]
-  );
-
-  const handleLogin = (password) => {
-    setApiKey(password);
-    fetchData(password);
-  };
-
-  // Auto-refresh every 30 seconds
-  useEffect(() => {
-    if (!apiKey) return;
-    const interval = setInterval(() => fetchData(), 30000);
-    return () => clearInterval(interval);
-  }, [apiKey, fetchData]);
-
-  if (!apiKey) {
-    return <LoginScreen onLogin={handleLogin} />;
-  }
-
-  if (loading && !data) {
-    return (
-      <div className={styles.dashboard}>
-        <div className={styles.loading}>
-          <div className={styles.spinner} />
-          Loading telemetry data...
+          <button 
+            onClick={fetchData}
+            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded transition-all active:scale-95"
+          >
+            Authenticate System
+          </button>
         </div>
       </div>
     );
   }
-
-  if (error) {
-    return (
-      <div className={styles.dashboard}>
-        <div className={styles.loading} style={{ color: "#ff6b6b" }}>
-          Error: {error}
-        </div>
-      </div>
-    );
-  }
-
-  if (!data) return null;
-
-  const { viewsByDay, loadTimes, clicks, viewsByPage, browsers, stats } = data;
-
-  // Shorten URLs for display
-  const shortenUrl = (url) => {
-    try {
-      const u = new URL(url);
-      return u.pathname === "/" ? u.hostname : u.pathname;
-    } catch {
-      return url;
-    }
-  };
-
-  const loadTimesDisplay = loadTimes.map((lt) => ({
-    ...lt,
-    shortUrl: shortenUrl(lt.url),
-  }));
-
-  const viewsByPageDisplay = viewsByPage.map((v) => ({
-    ...v,
-    shortUrl: shortenUrl(v.url),
-  }));
 
   return (
-    <div className={styles.dashboard}>
-      {/* Header */}
-      <div className={styles.header}>
-        <div>
-          <h1>📡 Telemetry Dashboard</h1>
-          <span className={styles.liveIndicator}>
-            <span className={styles.liveDot} />
-            Live — refreshes every 30s
-          </span>
-        </div>
-        <button onClick={() => fetchData()}>↻ Refresh Now</button>
+    <div className="min-h-screen bg-slate-950 text-slate-300 p-4 md:p-8 font-mono">
+      {/* Header Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        {[
+          { label: 'Total Events', val: data?.totalEvents, color: 'text-white' },
+          { label: 'Unique Users', val: data?.uniqueUsers, color: 'text-blue-500' },
+          { label: 'Avg TTI', val: `${data?.avgTTI}ms`, color: 'text-green-500' },
+          { label: 'Pages Tracked', val: data?.totalPages, color: 'text-purple-500' }
+        ].map((stat, i) => (
+          <div key={i} className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black mb-1">{stat.label}</p>
+            <p className={`text-3xl font-black ${stat.color}`}>{stat.val || 0}</p>
+          </div>
+        ))}
       </div>
 
-      {/* Stat Cards */}
-      <div className={styles.statGrid}>
-        <div className={styles.statCard}>
-          <div className={styles.statLabel}>Total Events</div>
-          <div className={styles.statValue}>
-            {stats.totalEvents.toLocaleString()}
-          </div>
-        </div>
-        <div className={styles.statCard}>
-          <div className={styles.statLabel}>Unique Sessions</div>
-          <div className={styles.statValue}>
-            {stats.uniqueSessions.toLocaleString()}
-          </div>
-        </div>
-        <div className={styles.statCard}>
-          <div className={styles.statLabel}>Avg Time to Interactive</div>
-          <div className={styles.statValue}>
-            {stats.avgTTI}
-            <span className={styles.statSuffix}>ms</span>
-          </div>
-        </div>
-        <div className={styles.statCard}>
-          <div className={styles.statLabel}>Pages Tracked</div>
-          <div className={styles.statValue}>{viewsByPage.length}</div>
-        </div>
-      </div>
-
-      {/* Charts */}
-      <div className={styles.chartGrid}>
-        {/* Views Over Time */}
-        <div className={styles.chartCard}>
-          <h2>📈 Page Views Over Time</h2>
-          {viewsByDay.length === 0 ? (
-            <div className={styles.emptyState}>
-              <p>No pageview data yet</p>
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={viewsByDay}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                <XAxis
-                  dataKey="date"
-                  stroke="#666"
-                  fontSize={12}
-                  tickFormatter={(v) => v.slice(5)}
-                />
-                <YAxis stroke="#666" fontSize={12} />
-                <Tooltip content={<CustomTooltip />} />
-                <Line
-                  type="monotone"
-                  dataKey="count"
-                  stroke="#3b82f6"
-                  strokeWidth={2.5}
-                  dot={{ r: 4, fill: "#3b82f6" }}
-                  activeDot={{ r: 6, fill: "#60a5fa" }}
-                  name="Views"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-
-        {/* Load Times */}
-        <div className={styles.chartCard}>
-          <h2>⚡ Avg Load Time by Page (ms)</h2>
-          {loadTimes.length === 0 ? (
-            <div className={styles.emptyState}>
-              <p>No performance data yet</p>
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={loadTimesDisplay} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                <XAxis type="number" stroke="#666" fontSize={12} />
-                <YAxis
-                  type="category"
-                  dataKey="shortUrl"
-                  stroke="#666"
-                  fontSize={12}
-                  width={120}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="avgTTI" fill="#60a5fa" name="TTI" radius={[0, 6, 6, 0]} />
-                <Bar dataKey="avgDCL" fill="#3b82f6" name="DCL" radius={[0, 6, 6, 0]} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        {/* Descriptive Engagement Chart */}
+        <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+          <h2 className="text-white font-bold mb-6 flex items-center gap-2">
+            <span className="text-blue-500">🖱️</span> Most Engaging Content
+          </h2>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data?.topClicks} layout="vertical">
+                <XAxis type="number" hide />
+                <YAxis dataKey="displayName" type="category" width={150} tick={{fontSize: 9, fill: '#64748b'}} />
+                <Tooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{backgroundColor: '#000', border: 'none', borderRadius: '8px'}} />
+                <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
-          )}
+          </div>
         </div>
 
-        {/* Most Clicked */}
-        <div className={styles.chartCard}>
-          <h2>🖱️ Most Clicked Elements</h2>
-          {clicks.length === 0 ? (
-            <div className={styles.emptyState}>
-              <p>No click data yet</p>
-              <p style={{ fontSize: "0.8rem" }}>
-                Add <code>data-track=&quot;label&quot;</code> to elements
-              </p>
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={clicks}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                <XAxis dataKey="label" stroke="#666" fontSize={12} />
-                <YAxis stroke="#666" fontSize={12} />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="count" name="Clicks" radius={[6, 6, 0, 0]}>
-                  {clicks.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-
-        {/* Browser Breakdown */}
-        <div className={styles.chartCard}>
-          <h2>🌐 Browser Breakdown</h2>
-          {browsers.length === 0 ? (
-            <div className={styles.emptyState}>
-              <p>No browser data yet</p>
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={280}>
+        {/* Browser Pie Chart */}
+        <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
+          <h2 className="text-white font-bold mb-6">🌐 Browser Distribution</h2>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie
-                  data={browsers}
-                  dataKey="count"
-                  nameKey="browser"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  innerRadius={50}
-                  paddingAngle={3}
-                  label={({ browser, percent }) =>
-                    `${browser} ${(percent * 100).toFixed(0)}%`
-                  }
-                  labelLine={{ stroke: "#555" }}
-                  fontSize={12}
-                >
-                  {browsers.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                <Pie data={data?.browsers} dataKey="count" nameKey="_id" cx="50%" cy="50%" innerRadius={60} outerRadius={80} stroke="none">
+                  {data?.browsers.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'][index % 4]} />
                   ))}
                 </Pie>
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip />
               </PieChart>
             </ResponsiveContainer>
-          )}
+          </div>
         </div>
+      </div>
 
-        {/* Top Pages */}
-        <div className={styles.chartCard} style={{ gridColumn: "1 / -1" }}>
-          <h2>📄 Top Pages by Views</h2>
-          {viewsByPage.length === 0 ? (
-            <div className={styles.emptyState}>
-              <p>No page data yet</p>
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={viewsByPageDisplay}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                <XAxis dataKey="shortUrl" stroke="#666" fontSize={12} />
-                <YAxis stroke="#666" fontSize={12} />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="count" name="Views" radius={[6, 6, 0, 0]}>
-                  {viewsByPageDisplay.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          )}
+      {/* Interaction Stream Table */}
+      <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+        <div className="p-6 border-b border-slate-800 flex justify-between items-center">
+          <div>
+            <h2 className="text-white font-bold text-lg">📡 Interaction Stream</h2>
+            <p className="text-[10px] text-slate-500 uppercase tracking-tighter mt-1">Real-time behavior sequence</p>
+          </div>
+          <div className="flex gap-2">
+             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+             <span className="text-[10px] font-bold">LIVE_FEED</span>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-black text-slate-500 uppercase text-[9px] font-black">
+              <tr>
+                <th className="px-6 py-4">Interaction Label</th>
+                <th className="px-6 py-4">User Identity</th>
+                <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4 text-right">Time</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+              {data?.recentClicks.map((click, idx) => (
+                <tr key={idx} className="hover:bg-blue-900/10 transition-colors">
+                  <td className="px-6 py-4 font-bold text-white">
+                    {labelMap[click.label] || click.label}
+                  </td>
+                  <td className="px-6 py-4 font-mono text-[10px] text-blue-400">
+                    {click.userId}
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className="px-2 py-0.5 bg-slate-800 border border-slate-700 rounded text-[9px] font-bold">
+                      VISIT_{click.visitCount || 1}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-slate-500 text-right">
+                    {new Date(click.timestamp).toLocaleTimeString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
   );
-}
+};
+
+export default Dashboard;

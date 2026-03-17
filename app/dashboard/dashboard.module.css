@@ -136,6 +136,11 @@
   50% { opacity: 0.3; }
 }
 
+.livePulse {
+  display: inline-block;
+  animation: livePulse 2s infinite ease-in-out;
+}
+
 /* ── Stat Cards ───────────────────────────────────────────────────── */
 .statGrid {
   display: grid;
@@ -240,6 +245,103 @@
 
 .emptyState p {
   margin-bottom: 0.5rem;
+}
+
+/* ── Interaction Table ────────────────────────────────────────────── */
+.tableContainer {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  overflow: hidden;
+  margin-top: 2rem;
+}
+
+.tableHeader {
+  padding: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tableHeader h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.tableSubtitle {
+  font-size: 0.7rem;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0.2rem;
+}
+
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.dataTable {
+  width: 100%;
+  text-align: left;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.dataTable thead {
+  background: rgba(0, 0, 0, 0.3);
+  color: #888;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dataTable th {
+  padding: 1rem 1.5rem;
+  font-weight: 600;
+}
+
+.dataTable tbody tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  transition: background 0.2s;
+}
+
+.dataTable tbody tr:hover {
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.dataTable td {
+  padding: 1rem 1.5rem;
+  color: #ccc;
+}
+
+.tableLabel {
+  font-weight: 600;
+  color: #fff;
+}
+
+.tableUser {
+  font-family: monospace;
+  color: #60a5fa;
+  font-size: 0.8rem;
+}
+
+.tableStatusBadge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.tableTime {
+  color: #888;
+  text-align: right;
 }
 
 /* ── Responsive ───────────────────────────────────────────────────── */

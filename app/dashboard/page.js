@@ -1,5 +1,7 @@
 "use client";
 import React, { useEffect, useState } from 'react';
+import { Antenna, LayoutDashboard, MousePointerClick, Globe, Activity } from 'lucide-react';
+import styles from './dashboard.module.css';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell 
@@ -28,24 +30,31 @@ const Dashboard = () => {
   const [data, setData] = useState(null);
   const [password, setPassword] = useState('');
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [error, setError] = useState('');
 
-  const fetchData = async () => {
+  const fetchData = async (e) => {
+    if (e) e.preventDefault();
+    setError('');
     try {
       const res = await fetch('/api/telemetry/dashboard', {
         headers: { 'Authorization': password }
       });
       if (res.ok) {
         const result = await res.json();
-        // Translate chart labels before rendering
         const translatedClicks = result.topClicks.map(item => ({
           ...item,
           displayName: labelMap[item.label] || item.label 
         }));
         setData({ ...result, topClicks: translatedClicks });
         setIsAuthorized(true);
+      } else if (res.status === 401) {
+        setError('Invalid System Password');
+      } else {
+        setError('Failed to authenticate');
       }
     } catch (err) {
       console.error("Fetch error:", err);
+      setError('Network error occurred');
     }
   };
 
@@ -58,58 +67,68 @@ const Dashboard = () => {
 
   if (!isAuthorized) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
-        <div className="bg-slate-900 p-8 rounded-xl border border-slate-800 w-full max-w-md shadow-2xl">
-          <h1 className="text-white text-2xl font-bold mb-6 flex items-center gap-3">
-            <span className="animate-pulse">📡</span> Telemetry Access
+      <div className={styles.loginContainer}>
+        <div className={styles.loginCard}>
+          <h1 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+            <span className={styles.livePulse || ''}><Antenna size={28} /></span> Telemetry Access
           </h1>
-          <input 
-            type="password" 
-            placeholder="System Password"
-            className="w-full bg-black border border-slate-700 p-3 rounded mb-4 text-white focus:border-blue-500 outline-none"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <button 
-            onClick={fetchData}
-            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded transition-all active:scale-95"
-          >
-            Authenticate System
-          </button>
+          <p>Please authenticate to access the live telemetry system.</p>
+          <form onSubmit={fetchData}>
+            <input 
+              type="password" 
+              placeholder="System Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            {error && <p className={styles.loginError}>{error}</p>}
+            <button type="submit">
+              Authenticate System
+            </button>
+          </form>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-300 p-4 md:p-8 font-mono">
+    <div className={styles.dashboard}>
+      {/* Header element to replace the basic padding */}
+      <div className={styles.header}>
+        <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><LayoutDashboard size={24} /> Dashboard</h1>
+        <div className={styles.liveIndicator}>
+          <span className={styles.liveDot}></span>
+          LIVE FEED ACTIVE
+        </div>
+      </div>
+
       {/* Header Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div className={styles.statGrid}>
         {[
-          { label: 'Total Events', val: data?.totalEvents, color: 'text-white' },
-          { label: 'Unique Users', val: data?.uniqueUsers, color: 'text-blue-500' },
-          { label: 'Avg TTI', val: `${data?.avgTTI}ms`, color: 'text-green-500' },
-          { label: 'Pages Tracked', val: data?.totalPages, color: 'text-purple-500' }
+          { label: 'Total Events', val: data?.totalEvents },
+          { label: 'Unique Users', val: data?.uniqueUsers },
+          { label: 'Avg TTI', val: data?.avgTTI ? `${data.avgTTI}` : '0', suffix: 'ms' },
+          { label: 'Pages Tracked', val: data?.totalPages }
         ].map((stat, i) => (
-          <div key={i} className="bg-slate-900 p-6 rounded-xl border border-slate-800">
-            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black mb-1">{stat.label}</p>
-            <p className={`text-3xl font-black ${stat.color}`}>{stat.val || 0}</p>
+          <div key={i} className={styles.statCard}>
+            <p className={styles.statLabel}>{stat.label}</p>
+            <p className={styles.statValue}>
+              {stat.val || 0}
+              {stat.suffix && <span className={styles.statSuffix}>{stat.suffix}</span>}
+            </p>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+      <div className={styles.chartGrid}>
         {/* Descriptive Engagement Chart */}
-        <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
-          <h2 className="text-white font-bold mb-6 flex items-center gap-2">
-            <span className="text-blue-500">🖱️</span> Most Engaging Content
-          </h2>
-          <div className="h-64">
+        <div className={styles.chartCard}>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MousePointerClick size={20} color="#3b82f6" /> Most Engaging Content</h2>
+          <div style={{ height: '250px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data?.topClicks} layout="vertical">
                 <XAxis type="number" hide />
-                <YAxis dataKey="displayName" type="category" width={150} tick={{fontSize: 9, fill: '#64748b'}} />
-                <Tooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{backgroundColor: '#000', border: 'none', borderRadius: '8px'}} />
+                <YAxis dataKey="displayName" type="category" width={150} tick={{fontSize: 10, fill: '#888'}} axisLine={false} tickLine={false} />
+                <Tooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff'}} />
                 <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -117,17 +136,17 @@ const Dashboard = () => {
         </div>
 
         {/* Browser Pie Chart */}
-        <div className="bg-slate-900 p-6 rounded-xl border border-slate-800">
-          <h2 className="text-white font-bold mb-6">🌐 Browser Distribution</h2>
-          <div className="h-64">
+        <div className={styles.chartCard}>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Globe size={20} color="#10b981" /> Browser Distribution</h2>
+          <div style={{ height: '250px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={data?.browsers} dataKey="count" nameKey="_id" cx="50%" cy="50%" innerRadius={60} outerRadius={80} stroke="none">
-                  {data?.browsers.map((entry, index) => (
+                <Pie data={data?.browsers} dataKey="count" nameKey="_id" cx="50%" cy="50%" innerRadius={60} outerRadius={80} stroke="none" paddingAngle={5}>
+                  {data?.browsers?.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'][index % 4]} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip contentStyle={{backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff'}} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -135,46 +154,49 @@ const Dashboard = () => {
       </div>
 
       {/* Interaction Stream Table */}
-      <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
-        <div className="p-6 border-b border-slate-800 flex justify-between items-center">
+      <div className={styles.tableContainer}>
+        <div className={styles.tableHeader}>
           <div>
-            <h2 className="text-white font-bold text-lg">📡 Interaction Stream</h2>
-            <p className="text-[10px] text-slate-500 uppercase tracking-tighter mt-1">Real-time behavior sequence</p>
-          </div>
-          <div className="flex gap-2">
-             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-             <span className="text-[10px] font-bold">LIVE_FEED</span>
+            <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Activity size={20} color="#8b5cf6" /> Interaction Stream</h2>
+            <p className={styles.tableSubtitle}>Real-time behavior sequence</p>
           </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-black text-slate-500 uppercase text-[9px] font-black">
+        <div className={styles.tableWrapper}>
+          <table className={styles.dataTable}>
+            <thead>
               <tr>
-                <th className="px-6 py-4">Interaction Label</th>
-                <th className="px-6 py-4">User Identity</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4 text-right">Time</th>
+                <th>Interaction Label</th>
+                <th>User Identity</th>
+                <th>Status</th>
+                <th className={styles.tableTime}>Time</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
-              {data?.recentClicks.map((click, idx) => (
-                <tr key={idx} className="hover:bg-blue-900/10 transition-colors">
-                  <td className="px-6 py-4 font-bold text-white">
+            <tbody>
+              {data?.recentClicks?.map((click, idx) => (
+                <tr key={idx}>
+                  <td className={styles.tableLabel}>
                     {labelMap[click.label] || click.label}
                   </td>
-                  <td className="px-6 py-4 font-mono text-[10px] text-blue-400">
+                  <td className={styles.tableUser}>
                     {click.userId}
                   </td>
-                  <td className="px-6 py-4">
-                    <span className="px-2 py-0.5 bg-slate-800 border border-slate-700 rounded text-[9px] font-bold">
+                  <td>
+                    <span className={styles.tableStatusBadge}>
                       VISIT_{click.visitCount || 1}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-slate-500 text-right">
+                  <td className={styles.tableTime}>
                     {new Date(click.timestamp).toLocaleTimeString()}
                   </td>
                 </tr>
               ))}
+              {(!data?.recentClicks || data.recentClicks.length === 0) && (
+                <tr>
+                  <td colSpan="4" style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
+                    No recent interactions found.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

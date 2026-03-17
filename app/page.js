@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BarChart3, Zap, MousePointerClick, ShieldCheck, Cloud, LayoutDashboard } from 'lucide-react';
 import styles from "./page.module.css";
 
 export default function Home() {
@@ -31,10 +32,9 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Features */}
       <div className={styles.features} id="features">
         <div className={styles.featureCard} data-track="feature-pageviews">
-          <div className={styles.featureIcon}>📊</div>
+          <div className={styles.featureIcon}><BarChart3 size={32} color="#3b82f6" /></div>
           <h3>Page View Tracking</h3>
           <p>
             Every visit is captured with URL, timestamp, referrer, browser, and
@@ -43,7 +43,7 @@ export default function Home() {
         </div>
 
         <div className={styles.featureCard} data-track="feature-performance">
-          <div className={styles.featureIcon}>⚡</div>
+          <div className={styles.featureIcon}><Zap size={32} color="#eab308" /></div>
           <h3>Performance Metrics</h3>
           <p>
             Time to Interactive, DOM Content Loaded, and full load times — all
@@ -52,7 +52,7 @@ export default function Home() {
         </div>
 
         <div className={styles.featureCard} data-track="feature-clicks">
-          <div className={styles.featureIcon}>🖱️</div>
+          <div className={styles.featureIcon}><MousePointerClick size={32} color="#f43f5e" /></div>
           <h3>Click Interactions</h3>
           <p>
             Tag any element with <code>data-track</code> and it&apos;s instantly
@@ -61,7 +61,7 @@ export default function Home() {
         </div>
 
         <div className={styles.featureCard} data-track="feature-privacy">
-          <div className={styles.featureIcon}>🔒</div>
+          <div className={styles.featureIcon}><ShieldCheck size={32} color="#10b981" /></div>
           <h3>Privacy First</h3>
           <p>
             Anonymous session IDs only — no cookies, no PII, no third-party
@@ -70,7 +70,7 @@ export default function Home() {
         </div>
 
         <div className={styles.featureCard} data-track="feature-serverless">
-          <div className={styles.featureIcon}>☁️</div>
+          <div className={styles.featureIcon}><Cloud size={32} color="#06b6d4" /></div>
           <h3>Serverless Architecture</h3>
           <p>
             Built on Next.js API routes — deploy to Vercel and scale
@@ -79,7 +79,7 @@ export default function Home() {
         </div>
 
         <div className={styles.featureCard} data-track="feature-dashboard">
-          <div className={styles.featureIcon}>📡</div>
+          <div className={styles.featureIcon}><LayoutDashboard size={32} color="#8b5cf6" /></div>
           <h3>Live Dashboard</h3>
           <p>
             Beautiful dark-themed analytics with line charts, bar charts, pie

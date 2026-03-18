@@ -2,7 +2,7 @@ import "./globals.css";
 import Script from "next/script";
 
 export const metadata = {
-  title: "Ad Telemetry — Real-Time Analytics Platform",
+  title: "Trackie — Real-Time Analytics Platform",
   description:
     "Lightweight ad-tech telemetry system capturing page views, performance metrics, and user interactions with a beautiful analytics dashboard.",
 };

@@ -1,6 +1,9 @@
 "use client";
 import React, { useEffect, useState } from 'react';
-import { Antenna, LayoutDashboard, MousePointerClick, Globe, Activity } from 'lucide-react';
+import { 
+  Antenna, LayoutDashboard, Users, Phone, LogOut, AlertTriangle, TrendingUp,
+  MousePointerClick, Globe, Activity 
+} from 'lucide-react';
 import styles from './dashboard.module.css';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -8,22 +11,30 @@ import {
 } from 'recharts';
 
 // ── DESCRIPTIVE LABEL MAPPING ───────────────────────────────────────
-// Translates technical IDs into human-readable descriptions
 const labelMap = {
-  // Resumes
   'resume_download_web': 'Developer Resume (PDF)',
   'resume_download_mobile': 'Mobile Resume (PDF)',
   'resume_download_data': 'Data Resume (PDF)',
-  // Projects
   'project_view_kape4u': 'Kape4U Project Click',
   'project_view_coffee_pipeline': 'Coffee Analytics Click',
   'project_view_ihm_proto': 'IHM Prototype Click',
   'project_view_speirs_proto': 'Speirs Group Prototype Click',
-  // Socials/Nav
   'github_hero': 'GitHub Link (Hero)',
   'linkedin_hero': 'LinkedIn Link (Hero)',
   'click_github': 'GitHub Link (General)',
   'click_linkedin': 'LinkedIn Link (General)'
+};
+
+const CustomBarTooltip = ({ active, payload, label }) => {
+  if (active && payload && payload.length) {
+    return (
+      <div style={{ backgroundColor: '#13141a', border: '1px solid rgba(255,255,255,0.08)', padding: '0.75rem', borderRadius: '8px', color: '#fff', fontSize: '0.8rem' }}>
+        <p style={{ fontWeight: 600, marginBottom: '0.2rem' }}>{label}</p>
+        <p style={{ color: '#06b6d4' }}>Clicks: {payload[0].value}</p>
+      </div>
+    );
+  }
+  return null;
 };
 
 const Dashboard = () => {
@@ -69,8 +80,8 @@ const Dashboard = () => {
     return (
       <div className={styles.loginContainer}>
         <div className={styles.loginCard}>
-          <h1 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-            <span className={styles.livePulse || ''}><Antenna size={28} /></span> Telemetry Access
+          <h1>
+            <Antenna size={28} color="#06b6d4" /> Telemetry Access
           </h1>
           <p>Please authenticate to access the live telemetry system.</p>
           <form onSubmit={fetchData}>
@@ -90,85 +101,207 @@ const Dashboard = () => {
     );
   }
 
+  // Pre-calculate Total browsers for Donut Chart percentage
+  const totalBrowsers = data?.browsers?.reduce((acc, curr) => acc + curr.count, 0) || 1;
+  const topBrowser = data?.browsers?.[0] || { _id: 'Unknown', count: 0 };
+  const topBrowserPercent = Math.round((topBrowser.count / totalBrowsers) * 100);
+
   return (
-    <div className={styles.dashboard}>
-      {/* Header element to replace the basic padding */}
-      <div className={styles.header}>
-        <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><LayoutDashboard size={24} /> Dashboard</h1>
-        <div className={styles.liveIndicator}>
-          <span className={styles.liveDot}></span>
-          LIVE FEED ACTIVE
+    <div className={styles.appContainer}>
+      {/* ── Sidebar ── */}
+      <div className={styles.sidebar}>
+        <div className={styles.logoArea}>
+          <div className={styles.logoIcon}>T</div>
+          Trackie
+        </div>
+        
+        <div className={styles.sidebarSection}>
+          <div className={styles.sectionTitle}>Main</div>
+          <div className={`${styles.navItem} ${styles.active}`}><LayoutDashboard size={16} /> Dashboard</div>
+          <div className={styles.navItem}><Activity size={16} /> Trackers</div>
+        </div>
+        
+        <div className={styles.sidebarSection}>
+          <div className={styles.sectionTitle}>Integrations</div>
+          <div className={styles.navItem}><Globe size={16} /> Websites</div>
+        </div>
+        
+        <div className={styles.userProfile}>
+          <div className={styles.avatar}>KS</div>
+          <div className={styles.userInfo}>
+            <div className={styles.userName}>Keith Speirs</div>
+            <div className={styles.userEmail}>keith@ad-telemetry.io</div>
+          </div>
+          <LogOut size={16} color="#8b92a5" style={{cursor: 'pointer'}} />
         </div>
       </div>
 
-      {/* Header Stats */}
-      <div className={styles.statGrid}>
-        {[
-          { label: 'Total Events', val: data?.totalEvents },
-          { label: 'Unique Users', val: data?.uniqueUsers },
-          { label: 'Avg TTI', val: data?.avgTTI ? `${data.avgTTI}` : '0', suffix: 'ms' },
-          { label: 'Pages Tracked', val: data?.totalPages }
-        ].map((stat, i) => (
-          <div key={i} className={styles.statCard}>
-            <p className={styles.statLabel}>{stat.label}</p>
-            <p className={styles.statValue}>
-              {stat.val || 0}
-              {stat.suffix && <span className={styles.statSuffix}>{stat.suffix}</span>}
-            </p>
+      {/* ── Main Content ── */}
+      <div className={styles.mainContent}>
+        {/* Top Header */}
+        <div className={styles.topHeader}>
+          <div className={styles.pageTitleContainer}>
+            <LayoutDashboard size={20} color="#8b92a5" />
+            <span className={styles.pageTitle}>Dashboard</span>
           </div>
-        ))}
-      </div>
-
-      <div className={styles.chartGrid}>
-        {/* Descriptive Engagement Chart */}
-        <div className={styles.chartCard}>
-          <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MousePointerClick size={20} color="#3b82f6" /> Most Engaging Content</h2>
-          <div style={{ height: '250px' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data?.topClicks} layout="vertical">
-                <XAxis type="number" hide />
-                <YAxis dataKey="displayName" type="category" width={150} tick={{fontSize: 10, fill: '#888'}} axisLine={false} tickLine={false} />
-                <Tooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff'}} />
-                <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className={styles.headerActions}>
+            <div className={styles.statusPill}>
+              <span className={styles.statusDot}></span> Live Systems Operational
+            </div>
+            <button className={styles.primaryButton}>+ New Tracker</button>
           </div>
         </div>
 
-        {/* Browser Pie Chart */}
-        <div className={styles.chartCard}>
-          <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Globe size={20} color="#10b981" /> Browser Distribution</h2>
-          <div style={{ height: '250px' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={data?.browsers} dataKey="count" nameKey="_id" cx="50%" cy="50%" innerRadius={60} outerRadius={80} stroke="none" paddingAngle={5}>
-                  {data?.browsers?.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'][index % 4]} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', color: '#fff'}} />
-              </PieChart>
-            </ResponsiveContainer>
+        {/* Stats Grid */}
+        <div className={styles.statGrid}>
+          <div className={styles.dashboardCard}>
+            <div className={styles.statHeader}>
+              <span className={styles.statTitle}>Unique Users</span>
+              <div className={styles.statIconWrap}><Users size={14} /></div>
+            </div>
+            <div className={styles.statValueRow}>
+              <span className={styles.statValue}>{data?.uniqueUsers || '0'}</span>
+              <span className={styles.trendGreen}>+3%</span>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* Interaction Stream Table */}
-      <div className={styles.tableContainer}>
-        <div className={styles.tableHeader}>
-          <div>
-            <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Activity size={20} color="#8b5cf6" /> Interaction Stream</h2>
-            <p className={styles.tableSubtitle}>Real-time behavior sequence</p>
+          <div className={styles.dashboardCard}>
+            <div className={styles.statHeader}>
+              <span className={styles.statTitle}>Pages Tracked</span>
+              <div className={styles.statIconWrap}><Globe size={14} /></div>
+            </div>
+            <div className={styles.statValueRow}>
+              <span className={styles.statValue}>{data?.totalPages || '0'}</span>
+              <span className={styles.trendGreen}>Active</span>
+            </div>
+          </div>
+
+          <div className={styles.dashboardCard}>
+            <div className={styles.statHeader}>
+              <span className={styles.statTitle}>Total Events</span>
+              <div className={styles.statIconWrap}><Activity size={14} /></div>
+            </div>
+            <div className={styles.statValueRow}>
+              <span className={styles.statValue}>{data?.totalEvents ? data.totalEvents.toLocaleString() : '0'}</span>
+              <span className={styles.trendGreen}>+12% vs LW</span>
+            </div>
+          </div>
+
+          <div className={styles.dashboardCard}>
+            <div className={styles.statHeader}>
+              <span className={styles.statTitle}>Avg Load Time (TTI)</span>
+              <div className={styles.statIconWrap}><TrendingUp size={14} /></div>
+            </div>
+            <div className={styles.statValueRow}>
+              <span className={styles.statValue}>{data?.avgTTI ? data.avgTTI : '0'}</span>
+              <span className={styles.statUnit}>ms</span>
+              <span className={styles.trendGreen}>Fast</span>
+            </div>
           </div>
         </div>
-        <div className={styles.tableWrapper}>
+
+        {/* Charts Section */}
+        <div className={styles.chartSection}>
+          
+          {/* Bar Chart */}
+          <div className={styles.chartCard}>
+            <div className={styles.chartHeader}>
+              <div>
+                <h2 className={styles.chartTitle}>Event History & Volume</h2>
+                <div className={styles.chartSubtitle}>30-day performance overview</div>
+              </div>
+              <div className={styles.timeFilters}>
+                <div className={styles.timeFilter}>7D</div>
+                <div className={`${styles.timeFilter} ${styles.active}`}>30D</div>
+              </div>
+            </div>
+            <div style={{ flex: 1, minHeight: '220px', marginLeft: '-15px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={data?.topClicks}>
+                  <defs>
+                    <linearGradient id="cyanGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#06b6d4" stopOpacity={1}/>
+                      <stop offset="100%" stopColor="#06b6d4" stopOpacity={0.2}/>
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="displayName" hide />
+                  <Tooltip content={<CustomBarTooltip />} cursor={{fill: 'rgba(255,255,255,0.02)'}} />
+                  <Bar dataKey="count" fill="url(#cyanGradient)" radius={[4, 4, 0, 0]} barSize={12} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Donut Chart */}
+          <div className={styles.chartCard}>
+            <div className={styles.chartHeader} style={{ justifyContent: 'center' }}>
+              <div style={{ textAlign: 'center' }}>
+                <h2 className={styles.chartTitle}>Peak Hours</h2>
+                <div className={styles.chartSubtitle}>Engagement distribution</div>
+              </div>
+            </div>
+            <div style={{ flex: 1, minHeight: '180px', position: 'relative' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie 
+                    data={data?.browsers} 
+                    dataKey="count" 
+                    nameKey="_id" 
+                    cx="50%" 
+                    cy="50%" 
+                    innerRadius="75%" 
+                    outerRadius="90%" 
+                    stroke="none" 
+                    paddingAngle={0}
+                    cornerRadius={0}
+                  >
+                    {data?.browsers?.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={['#06b6d4', '#a855f7', '#1f2937', '#e2e8f0'][index % 4]} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={{backgroundColor: '#13141a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#fff', fontSize: '0.8rem'}} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className={styles.donutInfo}>
+                <div className={styles.donutPercent}>{topBrowserPercent}%</div>
+                <div className={styles.donutLabel}>{topBrowser._id}</div>
+              </div>
+            </div>
+            
+            <div className={styles.pieLegend}>
+              <div className={styles.legendItem}>
+                <div className={styles.legendDot} style={{backgroundColor: '#06b6d4'}}></div>
+                45% AM
+              </div>
+              <div className={styles.legendItem}>
+                <div className={styles.legendDot} style={{backgroundColor: '#a855f7'}}></div>
+                30% PM
+              </div>
+              <div className={styles.legendItem}>
+                <div className={styles.legendDot} style={{backgroundColor: '#1f2937'}}></div>
+                25% Night
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Interaction Stream Table */}
+        <div className={styles.tableContainer}>
+          <div className={styles.tableHeader}>
+            <div>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#fff', fontSize: '1rem', fontWeight: 600 }}>
+                Recent System Activity
+              </h2>
+            </div>
+          </div>
           <table className={styles.dataTable}>
             <thead>
               <tr>
                 <th>Interaction Label</th>
                 <th>User Identity</th>
                 <th>Status</th>
-                <th className={styles.tableTime}>Time</th>
+                <th style={{textAlign: 'right'}}>Time</th>
               </tr>
             </thead>
             <tbody>
@@ -192,7 +325,7 @@ const Dashboard = () => {
               ))}
               {(!data?.recentClicks || data.recentClicks.length === 0) && (
                 <tr>
-                  <td colSpan="4" style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
+                  <td colSpan="4" style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
                     No recent interactions found.
                   </td>
                 </tr>
@@ -200,6 +333,7 @@ const Dashboard = () => {
             </tbody>
           </table>
         </div>
+        
       </div>
     </div>
   );

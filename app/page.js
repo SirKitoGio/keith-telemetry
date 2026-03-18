@@ -7,7 +7,7 @@ export default function Home() {
     <div className={styles.page}>
       {/* Hero */}
       <div className={styles.hero}>
-        <span className={styles.badge}>✦ Ad-Tech Telemetry System</span>
+        <span className={styles.badge}>✦ Trackie Analytics System</span>
         <h1 className={styles.title}>
           Real-Time Analytics,
           <br />
